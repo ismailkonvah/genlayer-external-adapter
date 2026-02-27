@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genlayer-external-adapter"
+version = "0.1.0"
+description = "Deterministic external API adapter SDK and relay for GenLayer Intelligent Contracts"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "cryptography>=42.0.0",
+  "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+relay = [
+  "fastapi>=0.110.0",
+  "uvicorn>=0.27.0",
+]
+dev = [
+  "httpx>=0.27.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "sdk"}
+
+[tool.setuptools.packages.find]
+where = ["sdk"]
