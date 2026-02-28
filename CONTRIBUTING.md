@@ -22,8 +22,10 @@ set GENLAYER_PRIVATE_KEY_PATH=relay_private_key.pem
 set GENLAYER_PUBLIC_KEY_PATH=relay_public_key.pem
 set GENLAYER_WEATHER_PROVIDER=open-meteo
 set GENLAYER_PRICE_PROVIDER=coingecko
+set GENLAYER_SOCIAL_PROVIDER=reddit
 # optional
 set COINGECKO_API_KEY=your_key
+set REDDIT_USER_AGENT=genlayer-external-adapter/0.1
 ```
 
 ## Run

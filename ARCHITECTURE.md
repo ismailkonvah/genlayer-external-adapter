@@ -2,7 +2,7 @@
 
 ## High-Level Flow
 
-1. Intelligent Contract calls SDK function (`get_temperature`, `get_price`).
+1. Intelligent Contract calls SDK function (`get_temperature`, `get_price`, `get_social_buzz`).
 2. SDK sends request to relay with:
    - business payload,
    - `nonce`,
@@ -25,7 +25,7 @@
 - `verifier.py`
   - public key loading (env/path or relay endpoint for dev)
   - Ed25519 verification
-- `weather.py`, `prices.py`
+- `weather.py`, `prices.py`, `social.py`
   - endpoint-specific wrappers
 - `exceptions.py`
   - typed SDK error surface
@@ -81,7 +81,9 @@
 - `GENLAYER_PRIVATE_KEY_PATH` or `GENLAYER_PRIVATE_KEY_PEM`
 - `GENLAYER_WEATHER_PROVIDER` (`mock`, `open-meteo`)
 - `GENLAYER_PRICE_PROVIDER` (`mock`, `coingecko`)
+- `GENLAYER_SOCIAL_PROVIDER` (`mock`, `reddit`)
 - `COINGECKO_API_KEY` (optional)
+- `REDDIT_USER_AGENT` (optional)
 - `GENLAYER_MAX_SKEW_SECONDS`
 
 ## Endpoint Contracts
@@ -113,6 +115,24 @@ Response (signed):
 
 - `symbol: string`
 - `price: float`
+- `timestamp: int`
+- `signature: base64`
+
+### `POST /social`
+
+Request:
+
+- `platform: string` (currently `reddit`)
+- `topic: string`
+- `nonce: string`
+- `request_timestamp: int`
+
+Response (signed):
+
+- `platform: string`
+- `topic: string`
+- `buzz_score: int`
+- `mentions: int`
 - `timestamp: int`
 - `signature: base64`
 

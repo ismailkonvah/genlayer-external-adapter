@@ -1,4 +1,6 @@
 # GenLayer External Adapter SDK
+[![Tests](https://github.com/ismailkonvah/genlayer-external-adapter/actions/workflows/tests.yml/badge.svg)](https://github.com/ismailkonvah/genlayer-external-adapter/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Deterministic external API adapter for GenLayer Intelligent Contracts.
 
@@ -6,9 +8,9 @@ Deterministic external API adapter for GenLayer Intelligent Contracts.
 
 - Python SDK package: `genlayer_external`
 - FastAPI relay service
-- Provider abstraction for weather/price backends
+- Provider abstraction for weather/price/social backends
 - Ed25519 signature signing and verification
-- Weather and price modules
+- Weather, price, and social modules
 - Demo intelligent contract
 - Replay and freshness protection
 
@@ -16,6 +18,7 @@ Deterministic external API adapter for GenLayer Intelligent Contracts.
 
 - Weather: `open-meteo` (no key required)
 - Price: `coingecko` (optional key via `COINGECKO_API_KEY`)
+- Social: `reddit` (optional `REDDIT_USER_AGENT`)
 - Local deterministic fallback: `mock`
 
 ## Architecture
@@ -45,8 +48,10 @@ set GENLAYER_PRIVATE_KEY_PATH=relay_private_key.pem
 set GENLAYER_PUBLIC_KEY_PATH=relay_public_key.pem
 set GENLAYER_WEATHER_PROVIDER=open-meteo
 set GENLAYER_PRICE_PROVIDER=coingecko
+set GENLAYER_SOCIAL_PROVIDER=reddit
 # optional
 set COINGECKO_API_KEY=your_key
+set REDDIT_USER_AGENT=genlayer-external-adapter/0.1
 ```
 
 4. Start relay from repo root:
@@ -60,9 +65,11 @@ uvicorn relay_service.main:app --reload --port 8000
 ```python
 from genlayer_external.weather import get_temperature
 from genlayer_external.prices import get_price
+from genlayer_external.social import get_social_buzz
 
 print(get_temperature("London"))
 print(get_price("ETH"))
+print(get_social_buzz("genlayer", "reddit"))
 ```
 
 ## Key Configuration
@@ -87,6 +94,7 @@ SDK verification key options:
 - Request freshness validation (`request_timestamp` window)
 - Replay protection with endpoint-scoped nonces
 - Deterministic normalization of external values (int C, 2-decimal USD)
+- Deterministic normalization of social signal (bounded integer buzz score)
 
 ## Running Tests
 

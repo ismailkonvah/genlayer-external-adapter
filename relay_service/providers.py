@@ -14,6 +14,11 @@ class PriceProvider(Protocol):
         ...
 
 
+class SocialProvider(Protocol):
+    def get_buzz(self, topic: str) -> tuple[int, int]:
+        ...
+
+
 class MockWeatherProvider:
     def get_temperature(self, city: str) -> int:
         # Stable deterministic output for local development/testing.
@@ -24,6 +29,12 @@ class MockPriceProvider:
     def get_price(self, symbol: str) -> float:
         # Stable deterministic output for local development/testing.
         return 3000.0
+
+
+class MockSocialProvider:
+    def get_buzz(self, topic: str) -> tuple[int, int]:
+        # Stable deterministic output for local development/testing.
+        return 42, 10
 
 
 class OpenMeteoWeatherProvider:
@@ -98,6 +109,36 @@ class CoinGeckoPriceProvider:
         return round(float(usd), 2)
 
 
+class RedditSocialProvider:
+    def __init__(self, timeout_seconds: int = 10):
+        self.timeout_seconds = timeout_seconds
+        self.user_agent = os.getenv(
+            "REDDIT_USER_AGENT",
+            "genlayer-external-adapter/0.1 (+https://github.com/ismailkonvah/genlayer-external-adapter)",
+        )
+
+    def get_buzz(self, topic: str) -> tuple[int, int]:
+        response = requests.get(
+            "https://www.reddit.com/search.json",
+            params={"q": topic, "sort": "top", "t": "day", "limit": 10},
+            headers={"User-Agent": self.user_agent},
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        children = (((payload.get("data") or {}).get("children")) or [])
+        posts = [item.get("data") or {} for item in children]
+
+        mentions = len(posts)
+        total_score = sum(int(post.get("score", 0)) for post in posts)
+        total_comments = sum(int(post.get("num_comments", 0)) for post in posts)
+
+        # Deterministic normalization to a bounded integer.
+        raw = total_score + (2 * total_comments)
+        buzz_score = max(0, min(100, int(raw // 10)))
+        return buzz_score, mentions
+
+
 def load_weather_provider() -> WeatherProvider:
     provider_name = os.getenv("GENLAYER_WEATHER_PROVIDER", "mock").lower()
     if provider_name == "mock":
@@ -114,3 +155,12 @@ def load_price_provider() -> PriceProvider:
     if provider_name == "coingecko":
         return CoinGeckoPriceProvider()
     raise ValueError(f"Unsupported price provider: {provider_name}")
+
+
+def load_social_provider() -> SocialProvider:
+    provider_name = os.getenv("GENLAYER_SOCIAL_PROVIDER", "mock").lower()
+    if provider_name == "mock":
+        return MockSocialProvider()
+    if provider_name == "reddit":
+        return RedditSocialProvider()
+    raise ValueError(f"Unsupported social provider: {provider_name}")

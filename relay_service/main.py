@@ -10,12 +10,13 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi import FastAPI, HTTPException
 
-from .providers import load_price_provider, load_weather_provider
-from .schemas import PriceRequest, WeatherRequest
+from .providers import load_price_provider, load_social_provider, load_weather_provider
+from .schemas import PriceRequest, SocialRequest, WeatherRequest
 
 app = FastAPI()
 weather_provider = load_weather_provider()
 price_provider = load_price_provider()
+social_provider = load_social_provider()
 
 MAX_SKEW_SECONDS = int(os.getenv("GENLAYER_MAX_SKEW_SECONDS", "300"))
 _used_nonces: Dict[str, int] = {}
@@ -112,6 +113,30 @@ def price(payload: PriceRequest):
     data = {
         "symbol": payload.symbol,
         "price": price_value,
+        "timestamp": int(time.time()),
+    }
+
+    canonical = canonical_json(data)
+    hash_bytes = hashlib.sha256(canonical.encode()).digest()
+    signature = sign_message(hash_bytes)
+
+    data["signature"] = signature
+    return data
+
+
+@app.post("/social")
+def social(payload: SocialRequest):
+    _register_nonce("social", payload.nonce, payload.request_timestamp)
+    if payload.platform.lower() != "reddit":
+        raise HTTPException(status_code=400, detail="Currently supported platform: reddit")
+
+    buzz_score, mentions = social_provider.get_buzz(payload.topic)
+
+    data = {
+        "platform": "reddit",
+        "topic": payload.topic,
+        "buzz_score": buzz_score,
+        "mentions": mentions,
         "timestamp": int(time.time()),
     }
 

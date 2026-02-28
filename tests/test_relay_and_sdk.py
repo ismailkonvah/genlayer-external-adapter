@@ -71,6 +71,27 @@ class RelaySdkTests(unittest.TestCase):
                 self.assertEqual(data["city"], "London")
                 self.assertEqual(data["temperature"], 25)
 
+    def test_sdk_social_signature_verification_flow(self):
+        import genlayer_external.core as core
+        import genlayer_external.verifier as verifier
+
+        verifier.reset_public_key_cache()
+        core.RELAY_URL = "http://relay.test"
+
+        def fake_post(url, *args, **kwargs):
+            path = url.replace(core.RELAY_URL, "")
+            return self.client.post(path, json=kwargs.get("json"))
+
+        def fake_get(url, *args, **kwargs):
+            path = url.replace(core.RELAY_URL, "")
+            return self.client.get(path)
+
+        with patch("genlayer_external.core.requests.post", side_effect=fake_post):
+            with patch("genlayer_external.verifier.requests.get", side_effect=fake_get):
+                data = core.relay_call("social", {"topic": "genlayer", "platform": "reddit"})
+                self.assertEqual(data["platform"], "reddit")
+                self.assertIn("buzz_score", data)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,7 +2,7 @@
 
 ## Summary
 
-This project provides infrastructure for GenLayer Intelligent Contracts to safely consume external data (weather, prices) through a deterministic and validator-verifiable flow.
+This project provides infrastructure for GenLayer Intelligent Contracts to safely consume external data (weather, prices, social signals) through a deterministic and validator-verifiable flow.
 
 Core value:
 
@@ -41,6 +41,7 @@ A two-part system:
 
 - Weather adapter (`open-meteo` and `mock`)
 - Price adapter (`coingecko` and `mock`)
+- Social adapter (`reddit` and `mock`)
 - Canonical JSON + SHA-256 + Ed25519 signature model
 - Relay public key discovery endpoint for local development
 - Production key pinning support through env/path configuration

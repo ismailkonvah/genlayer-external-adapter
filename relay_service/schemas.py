@@ -14,3 +14,8 @@ class WeatherRequest(BaseRequest):
 
 class PriceRequest(BaseRequest):
     symbol: str = Field(min_length=1, max_length=32)
+
+
+class SocialRequest(BaseRequest):
+    platform: str = Field(min_length=1, max_length=32)
+    topic: str = Field(min_length=1, max_length=128)
