@@ -2,17 +2,27 @@
 [![Tests](https://github.com/ismailkonvah/genlayer-external-adapter/actions/workflows/tests.yml/badge.svg)](https://github.com/ismailkonvah/genlayer-external-adapter/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Deterministic external API adapter for GenLayer Intelligent Contracts.
+Deterministic external API adapter infrastructure for GenLayer Intelligent Contracts.
 
-## Includes
+## Overview
+
+Intelligent Contracts need off-chain data, but direct API calls can expose API keys and create validator divergence. This project provides a secure relay + SDK pattern where external results are normalized, signed, and verified.
+
+Core value:
+
+- Contracts never hold provider API keys.
+- Relay signs canonical payload digests (SHA-256 + Ed25519).
+- SDK verifies signatures before returning values to contract logic.
+- Replay and stale requests are constrained with nonce + timestamp checks.
+
+## Scope
 
 - Python SDK package: `genlayer_external`
 - FastAPI relay service
 - Provider abstraction for weather/price/social backends
-- Ed25519 signature signing and verification
-- Weather, price, and social modules
-- Demo intelligent contract
+- Signed and verifiable adapter responses
 - Replay and freshness protection
+- Local tests + CI workflow
 
 ## Live Providers
 
@@ -23,38 +33,48 @@ Deterministic external API adapter for GenLayer Intelligent Contracts.
 
 ## Architecture
 
+Flow:
+
+1. Intelligent Contract calls SDK function (`get_temperature`, `get_price`, `get_social_buzz`).
+2. SDK sends payload with `nonce` + `request_timestamp` to relay.
+3. Relay validates schema/freshness/replay constraints.
+4. Relay fetches provider data and normalizes output deterministically.
+5. Relay canonicalizes JSON and signs digest with Ed25519 private key.
+6. SDK verifies signature using configured relay public key.
+
+High-level path:
+
 Intelligent Contract -> SDK -> Relay -> External API -> Signed Response -> Validator Verification
 
 ## Quickstart
 
-1. Install SDK and relay dependencies from repo root:
+1. Install dependencies:
 
 ```bash
 pip install -e .
 pip install -r relay_service/requirements.txt
 ```
 
-2. (Optional but recommended) generate a persistent relay keypair:
+2. (Optional, recommended) generate persistent relay keys:
 
 ```bash
 python relay_service/generate_keys.py
 ```
 
-3. Configure environment:
+3. Configure environment (PowerShell example):
 
-```bash
-# copy .env.example values into your shell or .env loader
-set GENLAYER_PRIVATE_KEY_PATH=relay_private_key.pem
-set GENLAYER_PUBLIC_KEY_PATH=relay_public_key.pem
-set GENLAYER_WEATHER_PROVIDER=open-meteo
-set GENLAYER_PRICE_PROVIDER=coingecko
-set GENLAYER_SOCIAL_PROVIDER=reddit
+```powershell
+$env:GENLAYER_PRIVATE_KEY_PATH="relay_private_key.pem"
+$env:GENLAYER_PUBLIC_KEY_PATH="relay_public_key.pem"
+$env:GENLAYER_WEATHER_PROVIDER="open-meteo"
+$env:GENLAYER_PRICE_PROVIDER="coingecko"
+$env:GENLAYER_SOCIAL_PROVIDER="reddit"
 # optional
-set COINGECKO_API_KEY=your_key
-set REDDIT_USER_AGENT=genlayer-external-adapter/0.1
+$env:COINGECKO_API_KEY="your_key"
+$env:REDDIT_USER_AGENT="genlayer-external-adapter/0.1"
 ```
 
-4. Start relay from repo root:
+4. Start relay:
 
 ```bash
 uvicorn relay_service.main:app --reload --port 8000
@@ -72,49 +92,71 @@ print(get_price("ETH"))
 print(get_social_buzz("genlayer", "reddit"))
 ```
 
-## Key Configuration
+## Endpoint Contracts
 
-Relay signing key options:
+`POST /weather`
 
-- `GENLAYER_PRIVATE_KEY_PEM`: PEM content in env var
-- `GENLAYER_PRIVATE_KEY_PATH`: path to PEM file
+- Request: `city`, `nonce`, `request_timestamp`
+- Response: `city`, `temperature`, `timestamp`, `signature`
 
-SDK verification key options:
+`POST /price`
 
-- `GENLAYER_PUBLIC_KEY_PEM`: PEM content in env var
-- `GENLAYER_PUBLIC_KEY_PATH`: path to PEM file
-- If neither is set, SDK fetches `GET /public-key` from relay (development convenience).
+- Request: `symbol`, `nonce`, `request_timestamp`
+- Response: `symbol`, `price`, `timestamp`, `signature`
 
-## Security Model
+`POST /social`
 
-- Canonical JSON serialization
+- Request: `platform` (currently `reddit`), `topic`, `nonce`, `request_timestamp`
+- Response: `platform`, `topic`, `buzz_score`, `mentions`, `timestamp`, `signature`
+
+## Security and Determinism
+
+- Canonical JSON serialization (`sort_keys=True`, compact separators)
 - SHA-256 digest signing
-- Ed25519 signature verification
-- Deterministic response payload fields
-- Request freshness validation (`request_timestamp` window)
-- Replay protection with endpoint-scoped nonces
-- Deterministic normalization of external values (int C, 2-decimal USD)
-- Deterministic normalization of social signal (bounded integer buzz score)
+- Ed25519 signature verification in SDK
+- Strict request schema validation (`extra=forbid`)
+- Freshness validation (`GENLAYER_MAX_SKEW_SECONDS`)
+- Endpoint-scoped nonce replay protection
+- Deterministic normalization:
+  - weather -> integer Celsius
+  - price -> 2-decimal USD float
+  - social -> bounded integer buzz score
 
-## Running Tests
+## Configuration
+
+SDK:
+
+- `GENLAYER_RELAY_URL`
+- `GENLAYER_PUBLIC_KEY_PATH` or `GENLAYER_PUBLIC_KEY_PEM`
+
+Relay:
+
+- `GENLAYER_PRIVATE_KEY_PATH` or `GENLAYER_PRIVATE_KEY_PEM`
+- `GENLAYER_WEATHER_PROVIDER` (`mock`, `open-meteo`)
+- `GENLAYER_PRICE_PROVIDER` (`mock`, `coingecko`)
+- `GENLAYER_SOCIAL_PROVIDER` (`mock`, `reddit`)
+- `COINGECKO_API_KEY` (optional)
+- `REDDIT_USER_AGENT` (optional)
+- `GENLAYER_MAX_SKEW_SECONDS`
+
+## Development
+
+Run tests:
 
 ```bash
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
-## Contribution Scope
+Contribution targets:
 
-This project is designed for GenLayer Builders contributions in Tools and Infrastructure:
+- Add provider implementations behind `relay_service/providers.py`
+- Preserve deterministic response shaping across validators
+- Maintain signed canonical payload verification in SDK
+- Add tests for adapters and failure paths
 
-- API adapter libraries for Intelligent Contracts
-- Relay pattern for private API key and signing boundary
-- Deterministic, verifiable responses for validator agreement
-- DX improvements through packaging, tests, and local setup defaults
+## Production Notes
 
-## Production Hardening
-
-- Store private keys in a secure key manager
-- Enforce timestamp freshness checks
-- Add replay protection nonce
-- Add strict request/response schema validation
-- Pin relay public key in SDK instead of runtime key discovery
+- Pin relay public key in SDK for production (avoid dynamic key discovery)
+- Keep private keys in secure key management
+- Replace in-memory nonce store with Redis/durable storage for scale
+- Add key IDs and rotation policy for higher assurance deployments
